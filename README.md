@@ -20,7 +20,6 @@ y:doc2  elephant:0.2 hadoop:1.1<br>
 .<br>
 .<br>
 z:docn  mahout:0.8 storm:1.6<br>
-<hr>
 
 where x,y,z is from (0,k)
 <hr>
