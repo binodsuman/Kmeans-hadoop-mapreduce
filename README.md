@@ -13,24 +13,27 @@ doc2  elephant:0.2 hadoop:1.1<br>
 docn  mahout:0.8 storm:1.6<br>
 <hr>
 Output of this program will be in the following format:
-x:doc1  car:0.9 plane:1.6 computer:2.3
-y:doc2  elephant:0.2 hadoop:1.1
-.
-.
-.
-z:docn  mahout:0.8 storm:1.6
+
+x:doc1  car:0.9 plane:1.6 computer:2.3<br>
+y:doc2  elephant:0.2 hadoop:1.1<br>
+.<br>
+.<br>
+.<br>
+z:docn  mahout:0.8 storm:1.6<br>
+<hr>
 
 where x,y,z is from (0,k)
+<hr>
+<b>Usage:</b>
 
-Usage:
+<b>1)</b> You need to create jar:
+use command: <i>mvn clean package</i>
 
-1) You need to create jar:
-use command: mvn clean package
+<b>2)</b> Copy the jar to the machine where you have your Hadoop installed
 
-2) Copy the jar to the machine where you have your Hadoop installed
+<b>3)</b> Run program:
+<i>hadoop jar [name of the jar] com.zikesjan.bigdata.KmeansMain [number of clusters] [maximal number of iteration] [input path] [output path]</i>
 
-3) Run program:
-hadoop jar <name of the jar> com.zikesjan.bigdata.KmeansMain <number of clusters> <maximal number of iteration> <input path> <output path>
-
-IMPORTANT: The code is not ment for production, it might work well in some cases, but it is not fully tested.
+<hr>
+<b>IMPORTANT:</b> The code is not ment for production, it might work well in some cases, but it is not fully tested.
 It is reccomended to use some standard implementation such as Apache Mahout instead of this code.
