@@ -22,6 +22,7 @@ z:docn  mahout:0.8 storm:1.6
 where x,y,z is from (0,k)
 
 Usage:
+
 1) You need to create jar:
 use command: mvn clean package
 
