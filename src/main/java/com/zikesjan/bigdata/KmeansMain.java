@@ -1,6 +1,8 @@
 package com.zikesjan.bigdata;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -27,22 +29,24 @@ import com.zikesjan.bigdata.sample.SampleMapper;
 import com.zikesjan.bigdata.sample.SampleReducer;
 
 public class KmeansMain {
-
-	public final static byte COUNTER_MARKER = (byte) 'T';
-	public final static byte VALUE_MARKER = (byte) 'W';
 	
 	//addresses of the helping storage directories
     private static final String OUTPUT_PATH = "/user/biadmin/output/means";
     private static final String OUTPUT_PATH_NORM = "/user/biadmin/output/normalized";
+    private static final String CACHE_PATH = "/user/biadmin/output/cache";
+    //addresses of the means files
+    private static final String CACHED_MEANS = "/user/biadmin/output/cache/part-r-00000";
+    private static final String ACTUAL_MEANS = "/user/biadmin/output/means/part-r-00000";
     
 
 	public static void main(String[] args) throws IOException,
 			InterruptedException, ClassNotFoundException, URISyntaxException {
 
-		Path inputPath = new Path(args[2]);
-		Path outputDir = new Path(args[3]);
+		Path inputPath = new Path(args[3]);
+		Path outputDir = new Path(args[4]);
 		int k = Integer.parseInt(args[0]);
 		int maxIterations = Integer.parseInt(args[1]);
+		double threshold = Double.parseDouble(args[2]);
 		
 		// Create configuration
 		Configuration conf = new Configuration(true);
@@ -69,12 +73,11 @@ public class KmeansMain {
 		int code = normalize.waitForCompletion(true) ? 0 : 1;
 		int documents = (int) normalize.getCounters().findCounter(MyCounters.Documents).getValue();
 		
-		conf.set("k", k+"");							//passing K to the mapreduce as a parameter
+		conf.set("k", k+"");							//passing K to the map reduce as a parameter
 		conf.set("documents", documents+"");
 		
 		//Create job that will select random sample
 		Job sample = new Job(conf, "Smaple");
-		//DistributedCache.addCacheFile(new URI("/user/biadmin/output/cache/means.txt"), sample.getConfiguration());
 		sample.setJarByClass(SampleMapper.class);
 		sample.setMapperClass(SampleMapper.class);
 		sample.setMapOutputKeyClass(Text.class);
@@ -97,17 +100,18 @@ public class KmeansMain {
 		code = sample.waitForCompletion(true) ? 0 : 1;
 	
 		
-		Path cache = new Path("/user/biadmin/output/cache");
-		long changed = 0;
+		Path cache = new Path(CACHE_PATH);
+		boolean changed = false;
 		int counter = 0;
-		while(changed < k && counter < maxIterations){  
+		while(!changed && counter < maxIterations){  
 			
+			conf.set("threshold", threshold+"");
 			Job kmeans = new Job(conf, "Kmeans");
 			
 			if(hdfs.exists(cache))
 				hdfs.delete(cache, true);
-			hdfs.rename(meansPath, cache);	 //maoving the part-r-00000 file to the cache directory
-			DistributedCache.addCacheFile(new URI("/user/biadmin/output/cache/part-r-00000"), kmeans.getConfiguration());
+			hdfs.rename(meansPath, cache);	 //moving the previous iteration file to the cache directory
+			DistributedCache.addCacheFile(new URI(CACHED_MEANS), kmeans.getConfiguration());
 			
 			kmeans.setJarByClass(KmeansMapper.class);
 			kmeans.setMapperClass(KmeansMapper.class);
@@ -128,8 +132,29 @@ public class KmeansMain {
 			// Execute job
 			code = kmeans.waitForCompletion(true) ? 0 : 1;
 			
-			changed = kmeans.getCounters().findCounter(MyCounters.Changed).getValue();
-			System.out.println("KMEANS finished iteration:>> "+counter);
+			//checking if the mean is stable
+			BufferedReader file1Reader = new BufferedReader(new InputStreamReader(hdfs.open(new Path(CACHED_MEANS))));
+			BufferedReader file2Reader = new BufferedReader(new InputStreamReader(hdfs.open(new Path(ACTUAL_MEANS))));
+			for(int i = 0; i<k; i++){
+				String file1String = file1Reader.readLine();
+				String file2String = file2Reader.readLine();
+				String[] keyValue1 = file1String.split("\t");
+				PointWritable mwc1 = new PointWritable();
+				mwc1.addAllFeaturesFromString(keyValue1[1]);
+				String[] keyValue2 = file2String.split("\t");
+				PointWritable mwc2 = new PointWritable();
+				mwc2.addAllFeaturesFromString(keyValue2[1]);
+				mwc1.setThreshold(threshold);
+				if(mwc1.equals(mwc2)){
+					changed = true;
+				}else{
+					changed = false;
+					break;
+				}
+			}
+			file1Reader.close();
+			file2Reader.close();
+			System.out.println("KMEANS finished iteration:>> "+counter + " || means stable: "+ changed);
 			counter++;
 		}
 		
@@ -160,7 +185,6 @@ public class KmeansMain {
 	
 	public enum MyCounters {
 		Actual,
-		Changed,
 		Documents,
 	}
 }

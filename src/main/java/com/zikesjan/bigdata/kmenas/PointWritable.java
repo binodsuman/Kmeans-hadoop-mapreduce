@@ -12,6 +12,7 @@ import org.apache.hadoop.io.Writable;
 public class PointWritable implements Writable{
 
 	private LinkedHashMap<String, MutableDouble> features;
+	private double threshold = 0.001;
 	
 	public PointWritable(){
 		this.features = new LinkedHashMap<String, MutableDouble>();
@@ -131,6 +132,10 @@ public class PointWritable implements Writable{
 		}
 		return sb.toString();
 	}
+	
+	public void setThreshold(double threshold){
+		this.threshold = threshold;
+	}
 
 	
 	/**
@@ -157,10 +162,12 @@ public class PointWritable implements Writable{
 		boolean same = true;
 		for(String key : features.keySet()){
 			if(!other.features.containsKey(key)){
-				same = false;
-				break;
+				if(Math.abs(0 - this.features.get(key).doubleValue()) > threshold){
+					same = false;
+					break;
+				}
 			}else{
-				if(Math.abs(other.features.get(key).doubleValue() - this.features.get(key).doubleValue()) > 0.0001){	//because of the floating point precission
+				if(Math.abs(other.features.get(key).doubleValue() - this.features.get(key).doubleValue()) > threshold){	//because of the floating point precission
 					same = false;
 					break;
 				}
@@ -169,10 +176,12 @@ public class PointWritable implements Writable{
 		if(!same) return false;
 		for(String key : other.features.keySet()){
 			if(!features.containsKey(key)){
-				same = false;
-				break;
+				if(Math.abs(other.features.get(key).doubleValue() - 0) > threshold){
+					same = false;
+					break;
+				}
 			}else{
-				if(Math.abs(other.features.get(key).doubleValue() - this.features.get(key).doubleValue()) > 0.0001){	//because of the floating point precission
+				if(Math.abs(other.features.get(key).doubleValue() - this.features.get(key).doubleValue()) > threshold){	//because of the floating point precission
 					same = false;
 					break;
 				}
